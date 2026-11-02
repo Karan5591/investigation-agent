@@ -182,6 +182,10 @@ class InvestigationAgent:
             "note the difference in reasoning but do not mark it as a contradiction unless the primary evidence itself conflicts. "
             "Return JSON only with keys: answer, confidence, has_contradiction, contradiction_reasoning, "
             "needs_more_evidence, missing_information, reasoning. "
+            "The answer value must be a detailed natural-language string of 2 to 4 sentences, never true, false, "
+            "yes, or no by itself. Start with the direct conclusion, then explain the relevant policy or contract "
+            "rule and the supporting facts from the evidence. Mention any unresolved point, such as whether an "
+            "approved credit was actually issued. Keep the answer concise but informative. "
             "If the evidence does not fully support an answer, set answer to null and needs_more_evidence to true.\n\n"
             f"Question: {question}\n\nEvidence:\n"
             + "\n\n---\n\n".join(
@@ -234,7 +238,7 @@ class InvestigationAgent:
                 trace=trace,
             )
 
-        answer_text = self._format_answer_text(question, answer)
+        answer_text = self._format_answer_text(question, answer, reasoning)
 
         trace.append("Answer produced.")
         return InvestigationResult(
@@ -432,12 +436,16 @@ class InvestigationAgent:
         return any(term in text_blob for term in support_terms) and not any(term in text_blob for term in denied_terms)
 
     @staticmethod
-    def _format_answer_text(question: str, answer: Any) -> str:
+    def _format_answer_text(question: str, answer: Any, reasoning: Any = None) -> str:
         if isinstance(answer, bool):
-            normalized = self._clean_text(question) if False else ""
-            if answer:
-                return "Yes — the evidence supports that the answer is yes."
-            return "No — the evidence does not support that the answer is yes."
+            fallback = str(reasoning).strip() if reasoning else ""
+            if fallback and len(fallback.split()) >= 12:
+                return fallback
+            return (
+                "The evidence supports the conclusion, but the model did not provide a detailed explanation."
+                if answer
+                else "The evidence does not support the requested conclusion."
+            )
 
         if answer is None:
             return "No answer was supported by the available evidence."
@@ -447,7 +455,14 @@ class InvestigationAgent:
 
         normalized = str(answer).strip()
         if normalized.lower() in {"true", "false"}:
-            return "Yes — the evidence supports that the answer is yes." if normalized.lower() == "true" else "No — the evidence does not support that the answer is yes."
+            fallback = str(reasoning).strip() if reasoning else ""
+            if fallback and len(fallback.split()) >= 12:
+                return fallback
+            return (
+                "The evidence supports the conclusion, but the model did not provide a detailed explanation."
+                if normalized.lower() == "true"
+                else "The evidence does not support the requested conclusion."
+            )
         return normalized
 
     @staticmethod

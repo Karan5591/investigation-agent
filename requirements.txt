@@ -15,7 +15,8 @@ torch>=2.3
 
 # --- Document parsing + OCR ---
 pymupdf>=1.24                # PDF text extraction and page rendering
-pytesseract>=0.3.10          # needs the Tesseract binary: sudo apt install tesseract-ocr
+rapidocr_onnxruntime>=1.4.4   # local OCR without a separate Tesseract executable
+numpy>=1.26
 Pillow>=10.3
 
 # --- LLM client (OpenAI-compatible: works with OpenAI, Ollama, vLLM, LM Studio) ---

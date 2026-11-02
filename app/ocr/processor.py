@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+
 try:
     import pymupdf
 except Exception:  # pragma: no cover
@@ -13,9 +15,9 @@ except Exception:  # pragma: no cover
     Image = None
 
 try:
-    import pytesseract
+    from rapidocr_onnxruntime import RapidOCR
 except Exception:  # pragma: no cover
-    pytesseract = None
+    RapidOCR = None
 
 
 class OCRProcessor:
@@ -24,6 +26,7 @@ class OCRProcessor:
     def __init__(self, lang: str = "eng", min_confidence: float = 70.0):
         self.lang = lang
         self.min_confidence = min_confidence
+        self.ocr = RapidOCR() if RapidOCR is not None else None
 
     def needs_ocr(self, file_path: str) -> bool:
         path = Path(file_path)
@@ -64,7 +67,7 @@ class OCRProcessor:
                 if text.strip():
                     extracted.append((text, False, None))
                     continue
-                if pytesseract is not None and Image is not None:
+                if self.ocr is not None and Image is not None:
                     pix = page.get_pixmap(matrix=pymupdf.Matrix(2, 2))
                     image = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
                     ocr_text, confidence = self._extract_ocr(image)
@@ -74,7 +77,7 @@ class OCRProcessor:
             return extracted
 
         if suffix in {".png", ".jpg", ".jpeg", ".tif", ".tiff"}:
-            if pytesseract is not None and Image is not None:
+            if self.ocr is not None and Image is not None:
                 image = Image.open(path)
                 text, confidence = self._extract_ocr(image)
                 return [(text, True, confidence)]
@@ -84,19 +87,26 @@ class OCRProcessor:
         return [(text, False, None)]
 
     def _extract_ocr(self, image) -> tuple[str, float]:
-        text = pytesseract.image_to_string(image, lang=self.lang)
-        data = pytesseract.image_to_data(
-            image,
-            lang=self.lang,
-            output_type=pytesseract.Output.DICT,
-        )
+        if self.ocr is None:
+            return "", 0.0
+
+        result, _ = self.ocr(np.asarray(image.convert("RGB")))
+        if not result:
+            return "", 0.0
+
+        texts: list[str] = []
         scores: list[float] = []
-        for value in data.get("conf", []):
+        for item in result:
+            if len(item) < 3:
+                continue
+            text = str(item[1]).strip()
+            if text:
+                texts.append(text)
             try:
-                score = float(value)
+                score = float(item[2]) * 100
             except (TypeError, ValueError):
                 continue
-            if score >= 0:
-                scores.append(score)
+            scores.append(score)
+
         confidence = sum(scores) / len(scores) if scores else 0.0
-        return text, confidence
+        return "\n".join(texts), confidence

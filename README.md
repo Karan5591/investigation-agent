@@ -13,6 +13,7 @@ This project is designed to be easy for a team to clone and run locally on a sta
 - Returns evidence-backed answers with trace information
 - Detects insufficient evidence and contradiction cases
 - Supports local LLMs through the OpenAI-compatible API
+- Provides a Streamlit frontend for easy manual testing
 
 ## Project structure
 
@@ -33,7 +34,7 @@ This project is designed to be easy for a team to clone and run locally on a sta
 - `docker-compose.yml` — Elasticsearch service definition
 - `.env.example` — environment file template
 - `requirements.txt` — Python dependencies
-- `streamlit_app.py` — optional frontend UI
+- `streamlit_app.py` — Streamlit frontend for manual testing
 
 ## Prerequisites
 
@@ -43,8 +44,10 @@ Before running this project, make sure the following are installed:
 - pip
 - Docker + Docker Compose
 - Git
-- Optional: Tesseract OCR for scanned documents
-- Optional: Ollama for a local LLM
+- RapidOCR is installed automatically with the Python dependencies for scanned documents or images
+
+RapidOCR runs locally through `rapidocr_onnxruntime`; no separate Tesseract executable is required. Text-based PDFs and text files do not require OCR.
+- Ollama for the recommended local LLM setup, or another OpenAI-compatible provider
 
 ## 1. Clone the repository
 
@@ -95,16 +98,16 @@ cp .env.example .env
 Then review the values in `.env` and update them as needed:
 
 - `OPENAI_API_KEY`: leave blank for a local Ollama model, or set your provider API key for a remote OpenAI-compatible endpoint
-- `OPENAI_MODEL`: set to your model name, for example `qwen2.5:7b` for local use or your hosted model name for remote use
+- `OPENAI_MODEL`: set to your model name, for example `llama3.2:3b` for local use or your hosted model name for remote use
 - `OPENAI_BASE_URL`: use `http://localhost:11434/v1` for local Ollama, or your provider's API base URL for remote use
 - `ES_URL`: usually `http://localhost:9200`
 - `SQLITE_PATH`: usually `data/app.db`
 
-Recommended local setup (Ollama):
+Recommended local setup using Ollama:
 
 ```env
 OPENAI_API_KEY=
-OPENAI_MODEL=qwen2.5:7b
+OPENAI_MODEL=llama3.2:3b
 OPENAI_BASE_URL=http://localhost:11434/v1
 ES_URL=http://localhost:9200
 ES_INDEX=document_chunks
@@ -114,11 +117,28 @@ SQLITE_PATH=data/app.db
 
 To use a local model with Ollama:
 
-1. Install Ollama.
+1. Install Ollama on the machine.
+
+On Linux:
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+On Windows, download and install Ollama from:
+
+- https://ollama.com/download/windows
+
+Restart the terminal after installation, then verify that Ollama is available:
+
+```bash
+ollama --version
+```
+
 2. Pull the model:
 
 ```bash
-ollama pull qwen2.5:7b
+ollama pull llama3.2:3b
 ```
 
 3. Start the Ollama server:
@@ -131,7 +151,7 @@ ollama serve
 
 ```env
 OPENAI_API_KEY=
-OPENAI_MODEL=qwen2.5:7b
+OPENAI_MODEL=llama3.2:3b
 OPENAI_BASE_URL=http://localhost:11434/v1
 ES_URL=http://localhost:9200
 ES_INDEX=document_chunks
@@ -169,20 +189,15 @@ curl http://localhost:9200
 
 You should get a JSON response from Elasticsearch.
 
-## 6. Start a local LLM (Ollama recommended)
+## 6. Start the local model and backend API
 
-If you want to run with a local model, install Ollama and pull a model:
+Start Ollama in one terminal:
 
 ```bash
-ollama pull qwen2.5:7b
 ollama serve
 ```
 
-The app uses the OpenAI-compatible chat API, so this works without changing application code.
-
-If you prefer a remote OpenAI-compatible API, you can skip Ollama and set the `.env` values to that endpoint instead.
-
-## 7. Start the backend API
+Start the backend in another terminal. Use `--host 0.0.0.0` so the Streamlit process can reach the API:
 
 From the project root:
 
@@ -206,15 +221,80 @@ Expected response:
 {"status":"ok"}
 ```
 
-## 8. Seed the sample corpus
+## 7. Start Streamlit for manual testing
 
-On startup, the application automatically seeds a demo corpus from `data/sample_docs` into the database and Elasticsearch if the index is empty or stale.
+Streamlit is the primary way to test this project manually. Start it from the project root in another terminal:
 
-This means that a fresh clone can run the demo without manual seeding.
+```bash
+streamlit run streamlit_app.py
+```
 
-## 9. Test the API
+Open the frontend in a browser:
 
-### Example 1: service credit review question
+- http://localhost:8501
+
+The Streamlit page provides three workflows:
+
+### Question only
+
+Use the default **Question only** workflow to ask a question against the seeded sample corpus. Set the number of evidence sources, then click **Run investigation**.
+
+The result shows:
+
+- investigation status
+- confidence score
+- number of sources reviewed
+- detailed answer
+- evidence cards with filename, page, source type, excerpt, and match score
+- warnings, missing information, and investigation trace when available
+
+### Upload a document: two-step workflow
+
+Choose **Upload a document**. The frontend then guides you through two explicit steps:
+
+1. **Step 1: Upload and index document** — select a supported document and click **Upload document**.
+2. **Step 2: Ask a question** — after the upload status confirms success, enter a question and click **Ask question**.
+
+This sends the document to the ingestion pipeline. The document is processed and indexed so it can be used in later investigations.
+
+Supported file types in the frontend include text files, PDFs, PNG images, and JPG/JPEG images.
+
+The Streamlit upload limit is configured to 20 MB in `.streamlit/config.toml`. Files larger than 20 MB are rejected by Streamlit before they are sent to the backend.
+
+The Streamlit frontend waits up to 200 seconds for an investigation or upload request to finish. This is a response timeout, not a file-size limit.
+
+The document remains available in the current Streamlit session while you ask questions. Click **Remove uploaded document** to clear it and start with another file.
+
+## 8. Sample questions for Streamlit
+
+Try these questions in the **Question only** workflow:
+
+- `Did the outage qualify for a service credit review?`
+- `What duration did the reports give for incident INC-2041?`
+- `What is the company office address in Tokyo?`
+
+The first should produce an evidence-backed service-credit result, the second exercises contradictory evidence, and the third should demonstrate insufficient evidence handling.
+
+## 9. Optional API and Swagger testing
+
+The backend also exposes Swagger UI at:
+
+- http://localhost:8001/docs
+
+Use Swagger when you need to test the API endpoints directly. The available endpoints are:
+
+- `GET /health`
+- `POST /investigate`
+- `POST /upload`
+- `POST /investigate-upload`
+
+### Optional cURL: health check
+
+```bash
+curl http://localhost:8001/health
+```
+
+### Optional cURL: investigation
 
 ```bash
 curl -X POST http://localhost:8001/investigate \
@@ -225,56 +305,14 @@ curl -X POST http://localhost:8001/investigate \
   }'
 ```
 
-### Example 2: unsupported question
-
-```bash
-curl -X POST http://localhost:8001/investigate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "What is the company office address in Tokyo?",
-    "top_k": 5
-  }'
-```
-
-Expected result: the app should abstain with `status: insufficient` if the evidence does not support the answer.
-
-### Example 3: contradiction question
-
-```bash
-curl -X POST http://localhost:8001/investigate \
-  -H "Content-Type: application/json" \
-  -d '{
-    "question": "What duration did the reports give for incident INC-2041?",
-    "top_k": 10
-  }'
-```
-
-Expected result: `status: contradictory` if the different reports disagree on the decisive fact.
-
-## 10. Optional: run the Streamlit frontend
-
-The project includes a lightweight Streamlit app for simple manual testing.
-
-Start it from the project root:
-
-```bash
-streamlit run streamlit_app.py
-```
-
-Then open:
-
-- http://localhost:8501
-
-## 11. Optional: upload a document
-
-Upload a file to the API:
+### Optional cURL: upload
 
 ```bash
 curl -X POST http://localhost:8001/upload \
-  -F "file=@/path/to/file.pdf"
+  -F "file=@/path/to/document.pdf"
 ```
 
-Or send a question with an uploaded document:
+### Optional cURL: upload and investigate
 
 ```bash
 curl -X POST http://localhost:8001/investigate-upload \
@@ -282,26 +320,23 @@ curl -X POST http://localhost:8001/investigate-upload \
   -F "file=@data/sample_docs/uploaded_note.txt"
 ```
 
-## 12. OCR support
+The Streamlit 20 MB limit applies to the frontend. Direct API uploads through cURL or Swagger may still require separate server or reverse-proxy limits.
 
-This project supports OCR for scanned pages or image-based files.
+## 10. Seed the sample corpus
 
-Install Tesseract:
+On startup, the application automatically seeds a demo corpus from `data/sample_docs` into the database and Elasticsearch if the index is empty or stale.
 
-- Ubuntu/Debian:
-  ```bash
-  sudo apt-get update
-  sudo apt-get install -y tesseract-ocr
-  ```
+This means that a fresh clone can run the demo without manual seeding.
 
-- macOS:
-  ```bash
-  brew install tesseract
-  ```
+## 11. OCR support
 
-- Windows: install Tesseract and ensure it is on the PATH.
+This project uses RapidOCR for scanned pages or image-based files. RapidOCR is installed by `pip install -r requirements.txt`; no separate Tesseract installation is required.
 
-## 13. Resetting local state
+For PDFs, PyMuPDF first extracts native text page by page. RapidOCR is used only for pages where no usable text is found. This avoids running OCR unnecessarily on text-based pages.
+
+The first OCR request may take longer while the local RapidOCR model initializes.
+
+## 12. Resetting local state
 
 If you want to clear stale local app data while testing, delete the SQLite DB and Elasticsearch index:
 
@@ -312,7 +347,7 @@ curl -X DELETE http://localhost:9200/document_chunks
 
 Then restart the backend and the app will re-seed the sample corpus.
 
-## 14. Troubleshooting
+## 13. Troubleshooting
 
 ### Docker Elasticsearch is not starting
 
@@ -354,7 +389,7 @@ Reinstall dependencies:
 pip install -r requirements.txt
 ```
 
-## 15. Testing the project
+## 14. Testing the project
 
 Run unit tests from the project root:
 
@@ -368,7 +403,7 @@ For a focused check of the investigation workflow:
 pytest tests/unit/test_investigation_workflow.py -q
 ```
 
-## 16. Summary
+## 15. Summary
 
 For a new team member, the shortest path to running this project is:
 
@@ -378,7 +413,8 @@ For a new team member, the shortest path to running this project is:
 4. Copy `.env.example` to `.env`
 5. Run `docker compose up -d`
 6. Start Ollama or configure a remote OpenAI-compatible endpoint
-7. Start API with `uvicorn app.api.main:app --host 0.0.0.0 --port 8001`
-8. Hit `/health` and `/investigate`
+7. Start the API with `uvicorn app.api.main:app --host 0.0.0.0 --port 8001`
+8. Start Streamlit with `streamlit run streamlit_app.py`
+9. Open `http://localhost:8501` and test the three workflows
 
 This is enough for a team to run the application on a fresh machine.
