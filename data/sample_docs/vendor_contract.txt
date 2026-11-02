@@ -1,0 +1,5 @@
+Vendor SLA Summary
+
+The vendor agrees to restore service within 4 hours of the first outage report. If the outage duration exceeds four hours, the customer may request a service credit. The vendor is expected to provide explanation and compensation documentation only after the outage is fully resolved and validated.
+
+The vendor team reported that the first alert was at 02:15 and services were restored at 06:40.

@@ -1,0 +1,9 @@
+Operations Log
+
+Date: 2026-10-12
+Incident ID: INC-2041
+Severity: High
+
+The customer platform experienced an outage beginning at 02:15 local time. The first escalation to the vendor was logged at 02:30. The vendor later confirmed service degradation at 03:00. Recovery was completed at 06:40 after a failed failover and a database restart.
+
+The incident review noted that the recovery time exceeded the 4-hour threshold in the contract, but the final approval for credit was held pending a signed customer confirmation.

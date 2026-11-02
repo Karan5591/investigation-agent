@@ -1,0 +1,3 @@
+Incident INC-2041 follow-up review
+
+The operations handover for incident INC-2041 recorded that the outage duration was 3 hours. This duration was used in the initial incident review.

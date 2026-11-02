@@ -1,0 +1,35 @@
+# --- API layer ---
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9      # file uploads
+pydantic>=2.7
+pydantic-settings>=2.3       # env-based config
+
+# --- Search / storage ---
+elasticsearch>=8.13,<9       # keep client major version in line with the ES server (8.x)
+# SQLite is in the standard library (sqlite3); no extra package needed
+
+# --- Embeddings + reranker ---
+sentence-transformers>=3.0   # embedding model + BGE reranker (CrossEncoder)
+torch>=2.3
+
+# --- Document parsing + OCR ---
+pymupdf>=1.24                # PDF text extraction and page rendering
+pytesseract>=0.3.10          # needs the Tesseract binary: sudo apt install tesseract-ocr
+Pillow>=10.3
+
+# --- LLM client (OpenAI-compatible: works with OpenAI, Ollama, vLLM, LM Studio) ---
+openai>=1.40
+httpx>=0.27
+
+# --- Utilities ---
+tenacity>=8.3                # retries with backoff for tool/LLM calls
+python-dotenv>=1.0
+
+# --- Testing ---
+pytest>=8.2
+pytest-asyncio>=0.23
+
+#---Streamlit----
+streamlit
+requests

@@ -1,0 +1,3 @@
+Vendor review for incident INC-2041
+
+The vendor closure report for incident INC-2041 recorded that the outage lasted 5 hours. This duration was used in the vendor's SLA assessment.

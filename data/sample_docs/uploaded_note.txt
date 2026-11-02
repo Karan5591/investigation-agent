@@ -1,0 +1,5 @@
+Customer Follow-up Note
+
+We reviewed the outage timeline and confirmed that the first outage alert was at 02:15. Recovery was completed at 06:40, which is more than four hours. The vendor acknowledged the SLA threshold was crossed.
+
+The final internal decision was to approve a credit review, but no credit had been issued yet because the records had not been signed off.

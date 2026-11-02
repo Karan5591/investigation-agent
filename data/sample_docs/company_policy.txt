@@ -1,0 +1,7 @@
+Incident Response Policy
+
+- Any outage affecting production services must be reported within 24 hours.
+- The incident owner must confirm whether the outage was caused by an internal system or an external vendor.
+- If a vendor contract includes an SLA breach, the support team must open a credit review.
+- Service credit eligibility is triggered when recovery exceeds four hours from the first confirmed outage.
+- If the evidence is incomplete, the case must remain open until additional documentation is obtained.
