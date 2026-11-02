@@ -5,4 +5,5 @@ __pycache__/
 .pytest_cache/
 data/app.db
 data/uploads/*
+data/*.db
 !data/uploads/.gitkeep
